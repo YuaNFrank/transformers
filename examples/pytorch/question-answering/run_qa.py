@@ -491,6 +491,7 @@ def main():
             # We will select sample from whole data
             eval_examples = eval_examples.select(range(data_args.max_eval_samples))
         # Validation Feature Creation
+        # Yuan: Do tokenize on validation set
         with training_args.main_process_first(desc="validation dataset map pre-processing"):
             eval_dataset = eval_examples.map(
                 prepare_validation_features,
