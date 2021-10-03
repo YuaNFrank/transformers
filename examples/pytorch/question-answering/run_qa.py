@@ -21,6 +21,7 @@ Fine-tuning the library models for question answering.
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -578,7 +579,7 @@ def main():
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,
     )
-
+    tranning_time_start = time.time()
     # Training
     if training_args.do_train:
         checkpoint = None
@@ -598,8 +599,11 @@ def main():
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
         trainer.save_state()
+    tranning_time_end = time.time()
+    print("Tranning Time: ", tranning_time_end - tranning_time_start, ' s')
 
     # Evaluation
+    evaluation_time_start = time.time()
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
         metrics = trainer.evaluate()
@@ -609,6 +613,8 @@ def main():
 
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
+    evaluation_time_end = time.time()
+    print("Evaluation Time:", evaluation_time_end - evaluation_time_start, ' s')
 
     # Prediction
     if training_args.do_predict:

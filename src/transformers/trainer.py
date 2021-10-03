@@ -28,6 +28,7 @@ import time
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from torch.autograd import backward
 
 from tqdm.auto import tqdm
 
@@ -1305,11 +1306,11 @@ class Trainer:
                     and args.local_rank != -1
                     and args._no_sync_in_gradient_accumulation
                 ):
-                    # Avoid unnecessary DDP synchronization since there will be no backward pass on this example.
-                    with model.no_sync():
-                        tr_loss_step = self.training_step(model, inputs)
+                    # Avoid unnecessary DDP synchronization since there will be no backward pass on this example. 
+                    with model.no_sync(): 
+                        tr_loss_step = self.training_step(model, inputs)  
                 else:
-                    tr_loss_step = self.training_step(model, inputs)
+                    tr_loss_step = self.training_step(model, inputs)  ##! Yuan: Actual Trainnning 
 
                 if args.logging_nan_inf_filter and (torch.isnan(tr_loss_step) or torch.isinf(tr_loss_step)):
                     # if loss is nan or inf simply add the average of previous logged losses
@@ -1349,7 +1350,8 @@ class Trainer:
                                 args.max_grad_norm,
                             )
 
-                    # Optimizer step
+                    # Optimizer step 
+                    #! YUan : Optimizer Update the weights according to the computed gradients in the .backwards step.
                     optimizer_was_run = True
                     if self.deepspeed:
                         pass  # called outside the loop
@@ -1826,7 +1828,7 @@ class Trainer:
         Return:
             :obj:`torch.Tensor`: The tensor with training loss on this batch.
         """
-        model.train()
+        model.train() #! Yuan: not doing trainning but set the model into trainning mode, For example, this enable the dropout layer and BatchNormLayers
         inputs = self._prepare_inputs(inputs)
 
         if is_sagemaker_mp_enabled():
@@ -1834,10 +1836,11 @@ class Trainer:
             loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps, scaler=scaler)
             return loss_mb.reduce_mean().detach().to(self.args.device)
 
-        if self.use_amp:
+        if self.use_amp: #! Yuan: AMP stands for Automatic Mixed Precision
             with autocast():
                 loss = self.compute_loss(model, inputs)
         else:
+            #! Yuan: Forwards Propagation happends
             loss = self.compute_loss(model, inputs)
 
         if self.args.n_gpu > 1:
@@ -1847,6 +1850,7 @@ class Trainer:
             # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
             loss = loss / self.args.gradient_accumulation_steps
 
+        backward_start_time = time.time() 
         if self.use_amp:
             self.scaler.scale(loss).backward()
         elif self.use_apex:
@@ -1856,7 +1860,10 @@ class Trainer:
             # loss gets scaled under gradient_accumulation_steps in deepspeed
             loss = self.deepspeed.backward(loss)
         else:
+            #! Actually Backwards prop
             loss.backward()
+        backward_end_time = time.time()
+        print("Backward ", backward_end_time - backward_start_time)
 
         return loss.detach()
 

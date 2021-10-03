@@ -1,3 +1,5 @@
+start=$(date +%s) 
+echo "Start" 
 
 python run_qa.py \
   --model_name_or_path bert-base-uncased \
@@ -9,4 +11,8 @@ python run_qa.py \
   --num_train_epochs 2 \
   --max_seq_length 384 \
   --doc_stride 128 \
-  --output_dir /tmp/debug_squad/
+  --output_dir /tmp/debug_squad/ > log
+
+end=$(date +%s)
+take=$(( end - start ))
+echo Time taken to execute commands is ${take} seconds.

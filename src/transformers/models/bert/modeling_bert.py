@@ -18,6 +18,7 @@
 
 import math
 import os
+import time
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
@@ -190,6 +191,7 @@ class BertEmbeddings(nn.Module):
     def forward(
         self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None, past_key_values_length=0
     ):
+        embeddings_start_time = time.time()
         if input_ids is not None:
             input_shape = input_ids.size()
         else:
@@ -221,6 +223,8 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        embeddings_end_time = time.time()
+        print('Embedding ', embeddings_end_time - embeddings_start_time)
         return embeddings
 
 
@@ -264,6 +268,7 @@ class BertSelfAttention(nn.Module):
         past_key_value=None,
         output_attentions=False,
     ):
+        BertSelfAttention_time_start = time.time()
         mixed_query_layer = self.query(hidden_states)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -346,6 +351,8 @@ class BertSelfAttention(nn.Module):
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
+        BertSelfAttention_time_end = time.time()
+        print('BertSelfAttention ', BertSelfAttention_time_end -  BertSelfAttention_time_start)
         return outputs
 
 
@@ -519,8 +526,11 @@ class BertLayer(nn.Module):
         return outputs
 
     def feed_forward_chunk(self, attention_output):
+        feed_forward_start_time = time.time()
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
+        feed_forward_end_time = time.time()
+        print('Feed_forward ', feed_forward_end_time - feed_forward_start_time)
         return layer_output
 
 
@@ -528,7 +538,8 @@ class BertEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
+        #! Yuan: `config.num_hidden_layers` number of BertLayer
+        self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)]) 
         self.gradient_checkpointing = False
 
     def forward(
